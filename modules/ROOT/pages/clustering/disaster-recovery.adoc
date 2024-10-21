@@ -170,19 +170,8 @@ However, not adding new servers reduces the capacity of the cluster to handle wo
 Furthermore, it might require the topology for a database to be altered to make deallocating servers and recreating databases possible.
 =====
 
-// ? from here
-. For each `CORDONED` server, run `DEALLOCATE DATABASES FROM SERVER cordoned-server-id` on one of the available servers.
-This will try to move all database allocations from this server to an available server in the cluster.
-Once a server is `DEALLOCATED`, all allocated user databases on this server has been moved successfully.
-+
-[NOTE]
-=====
-Remember, moving databases can take an unbounded amount of time since it involves copying the store to a new server.
-Therefore, an allocation with `currentStatus` = `DEALLOCATING` should reach the `requestedStatus` = `DEALLOCATED` given some time.
-=====
-. If any deallocations failed, make them possible by executing the following steps:
-.. Run `SHOW DATABASES`. If a database show `currentStatus`= `offline` this database has been stopped.
-.. For each stopped database that has at least one allocation on any of the `CORDONED` servers, start them by running `START DATABASE stopped-db WAIT`.
+. Run `SHOW DATABASES`. If a database show `currentStatus`= `offline` this database has been stopped.
+. For each stopped database that has at least one allocation on any of the `CORDONED` servers, start them by running `START DATABASE stopped-db WAIT`.
 This is necessary since stopped databases cannot be moved from one server to another.
 +
 [NOTE]
@@ -190,11 +179,10 @@ This is necessary since stopped databases cannot be moved from one server to ano
 A database can be set to `READ-ONLY` before it is started to avoid updates on a database that is desired to be stopped with the following command:
 `ALTER DATABASE database-name SET ACCESS READ ONLY`.
 =====
-.. On each server, run `CALL dbms.cluster.statusCheck([])` to check the write availability for all databases on this server, see xref:clustering/monitoring/status-check.adoc#monitoring-replication[Monitoring replication] for more information.
+. On each server, run `CALL dbms.cluster.statusCheck([])` to check the write availability for all databases on this server, see xref:clustering/monitoring/status-check.adoc#monitoring-replication[Monitoring replication] for more information.
 Depending on the environment, consider extending the timeout for this procedure.
 If any of the primary allocations for a database report `replicationSuccessful` = `TRUE`, this database is write available.
-
-.. For each database that is not write available, recreate it to move it from lost servers and regain write availability.
+. For each database that is not write available, recreate it to move it from lost servers and regain write availability.
 Go to xref:clustering/databases.adoc#recreate-databases[Recreate databases] for more information about recreate options.
 Remember to make sure there are recent backups for the databases before recreating them, see xref:backup-restore/online-backup.adoc[Online backup] for more information.
 +
@@ -203,11 +191,11 @@ Remember to make sure there are recent backups for the databases before recreati
 By using recreate with xref:clustering/databases.adoc#undefined-servers-backup[Undefined servers with fallback backup], also databases which have lost all allocation can be recreated.
 Otherwise, recreating with xref:clustering/databases.adoc#uri-seed[Backup as seed] must be used for that specific case.
 =====
-.. Return to step 3 to retry deallocating all servers.
-. For each deallocated server, run `DROP SERVER deallocated-server-id`.
-This safely removes the server from the cluster's view.
-
-// ? to here really
+. For each `CORDONED` server, run `DEALLOCATE DATABASES FROM SERVER cordoned-server-id` on one of the available servers.
+This will try to move all database allocations from this server to an available server in the cluster.
+This operation might fail if enough unconstrained servers were not added to the cluster to replace lost servers.
+. For each deallocating or deallocated server, run `DROP SERVER deallocated-server-id`.
+This removes the server from the cluster's view.
 ====
 
 
