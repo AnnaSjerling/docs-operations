@@ -53,15 +53,22 @@ Verifying each state before continuing to the next step, regardless of the disas
 
 [NOTE]
 ====
-Before beginning this guide, start the Neo4j process on all servers that are _offline_.
-If a server is unable to start, inspect the logs and contact support personnel.
-The server may have to be considered indefinitely lost.
-====
-
 Disasters may sometimes affect the routing capabilities of the driver and may prevent the use of the `neo4j` scheme for routing.
 One way to remedy this is to connect directly to the server using `bolt` instead of `neo4j`.
 See xref:clustering/setup/routing.adoc#clustering-routing[Server-side routing] for more information on the `bolt` scheme.
+====
 
+=== Neo4j process started
+
+==== State
+====
+The Neo4j process is started on all _offline_ servers.
+====
+
+==== Path to correct state
+Start the Neo4j process on all servers that are _offline_.
+If a server is unable to start, inspect the logs and contact support personnel.
+The server may have to be considered indefinitely lost.
 
 [[restore-the-system-database]]
 === `System` database write availability
@@ -184,6 +191,7 @@ Depending on the environment, consider extending the timeout for this procedure.
 If any of the primary allocations for a database report `replicationSuccessful` = `TRUE`, this database is write available.
 . For each database that is not write available, recreate it to move it from lost servers and regain write availability.
 Go to xref:clustering/databases.adoc#recreate-databases[Recreate databases] for more information about recreate options.
+If any allocation has `currentStatus` = `QUARANTINED`, recreate them from backup using xref:clustering/databases.adoc#uri-seed[Backup as seed] or define seeding servers in the recreate procedure using xref:clustering/databases.adoc#specified-servers[Specified seeders] so that problematic allocations are excluded.
 Remember to make sure there are recent backups for the databases before recreating them, see xref:backup-restore/online-backup.adoc[Online backup] for more information.
 +
 [NOTE]
@@ -193,7 +201,12 @@ Otherwise, recreating with xref:clustering/databases.adoc#uri-seed[Backup as see
 =====
 . For each `CORDONED` server, run `DEALLOCATE DATABASES FROM SERVER cordoned-server-id` on one of the available servers.
 This will try to move all database allocations from this server to an available server in the cluster.
++
+[NOTE]
+=====
 This operation might fail if enough unconstrained servers were not added to the cluster to replace lost servers.
+Another reason is that some available servers are also `CORDONED`.
+=====
 . For each deallocating or deallocated server, run `DROP SERVER deallocated-server-id`.
 This removes the server from the cluster's view.
 ====
@@ -230,7 +243,7 @@ Therefore, the desired state has been verified when this is true for all databas
 CALL dbms.cluster.statusCheck([]);
 ----
 
-A stricter verification could be done to verify if all databases are in desired states on all servers.
+A stricter verification can be done to verify that all databases are in their desired states on all servers.
 For the stricter check, run `SHOW DATABASES` and verify that `requestedStatus` = `currentStatus` for all database allocations on all servers.
 
 ==== Path to correct state
@@ -243,6 +256,7 @@ Recreations might fail for different reasons, but one example is that the checks
 ====
 . Run `CALL dbms.cluster.statusCheck([])` on all servers to identify write unavailable databases, see xref:clustering/monitoring/status-check.adoc#monitoring-replication[Monitoring replication] for more information.
 . Recreate every database that is not write available and has not been recreated previously, see xref:clustering/databases.adoc#recreate-databases[Recreate databases] for more information.
+If any allocation has `currentStatus` = `QUARANTINED`, recreate them from backup using xref:clustering/databases.adoc#uri-seed[Backup as seed] or define seeding servers in the recreate procedure using xref:clustering/databases.adoc#specified-servers[Specified seeders] so that problematic allocations are excluded.
 Remember to make sure there are recent backups for the databases before recreating them, see xref:backup-restore/online-backup.adoc[Online backup] for more information.
 . Run `SHOW DATABASES` and check any recreated databases which are not write available.
 Recreating a database will not complete if one of the following messages is displayed in the message field:
